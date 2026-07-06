@@ -48,16 +48,15 @@
 
     <h1>⚛️ QUANTUM SANGHA ⚛️</h1>
     
-    <div id="status" onclick="requestNotificationPermission()">Tap to Connect & Listen</div>
+    <div id="status" onclick="initializeSanghaApp()">Tap to Connect & Listen</div>
+
+    <audio id="gongAudio" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
 
     <script>
         const TOPIC_NAME = "quantum_sangha_groupie"; 
         const statusText = document.getElementById('status');
         const gongAudio = document.getElementById('gongAudio');
         let isListening = false;
-
-        // Note: We completely removed the old auto-start on load logic here 
-        // to force the user gesture on every visit.
 
         async function initializeSanghaApp() {
             // 1. iOS Fallback Capability Check
