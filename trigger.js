@@ -10,7 +10,7 @@ async function checkQuantumQubit() {
     console.log(`[QRNG Matrix] Hex: ${qdata.qrn} | Decimal: ${decimalValue}`);
 
     // ~8.33% chance to hit (Expected value = 1 time per hour over 12 intervals)
-    if (decimalValue <= 255) {
+    if (decimalValue <= 42) {
       console.log("✨ Quantum criteria matched! Striking the global gong...");
 
       // Broadcast to ntfy.sh
