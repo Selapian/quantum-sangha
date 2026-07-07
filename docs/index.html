@@ -121,27 +121,30 @@
             const eventSource = new EventSource(`https://ntfy.sh/${TOPIC_NAME}/sse`);
             
             eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                
-                // Fire Audio Element (Now fully unlocked via the initial load tap!)
-                gongAudio.play().catch(e => console.log("Audio play failed:", e));
+    const data = JSON.parse(event.data);
+    
+    // FIXED: Reset the audio track to the beginning so it can loop multiple times
+    gongAudio.currentTime = 0; 
+    
+    // Fire Audio Element safely
+    gongAudio.play().catch(e => console.log("Audio play failed:", e));
 
-                // Fire the system notification banner
-                new Notification(data.title || "Quantum Sangha", {
-                    body: data.message || "🔔 Time for Mindfulness!",
-                    icon: 'https://cdn-icons-png.flaticon.com/512/3663/3663335.png'
-                });
+    // Fire the system notification banner
+    new Notification(data.title || "Quantum Sangha", {
+        body: data.message || "🔔 Time for Mindfulness!",
+        icon: 'https://cdn-icons-png.flaticon.com/512/3663/3663335.png'
+    });
 
-                // Display active flash confirmation state
-                statusText.innerText = "Bell Rung";
-                statusText.classList.add('active');
+    // Display active flash confirmation state
+    statusText.innerText = "Bell Rung";
+    statusText.classList.add('active');
 
-                // Return back to tracking cycle configuration after 5 seconds
-                setTimeout(() => {
-                    statusText.innerText = "Listening for Mindfulness Gong";
-                    statusText.classList.remove('active');
-                }, 5000);
-            };
+    // Return back to tracking cycle configuration after 5 seconds
+    setTimeout(() => {
+        statusText.innerText = "Listening for Mindfulness Gong";
+        statusText.classList.remove('active');
+    }, 5000);
+};
 
             eventSource.onerror = () => {
                 console.log("Reconnecting to quantum pipeline...");
