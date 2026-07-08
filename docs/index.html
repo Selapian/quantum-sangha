@@ -56,13 +56,13 @@
                 setTimeout(() => {
                     if (isIOS) {
                         statusText.innerText = "Add to Home Screen (iOS)"; statusText.style.color = "blue"; statusText.style.borderColor = "#111111";
-                    } else if (!deferredPrompt) { lockBrowserInterface(); }
-                }, 800); 
+                    } else if (!deferredPrompt && !isStandalone) { lockBrowserInterface(); }
+                }, 1200); 
             }
         });
 
         function lockBrowserInterface() {
-            statusText.innerText = "App Installed. Check Home Screen."; statusText.classList.add('locked'); statusText.style.color = "green"; statusText.style.borderColor = "#006633";
+            statusText.innerText = "App Already Installed. Check Home Screen."; statusText.classList.add('locked'); statusText.style.color = "green"; statusText.style.borderColor = "#006633";
         }
 
         async function handleInstallAction() {
@@ -88,8 +88,9 @@
                 try {
                     const permission = await Notification.requestPermission();
                     if (permission === 'granted') {
-                        // This VAPID public key string is MANDATORY for iOS to sign the worker handshake
                         const ntfyPublicKey = 'BIEg7gN6gT9Ror5p0SAn00w7f_q_D88z_3ZzK5H12O1S_TDksI6gO1V6g-N1SIml874S_A8q_fSAs_A6gO1V6g';
+                        
+                        // FIXED: Wrapped the raw key string in the parsing array utility below
                         const subscription = await swRegistration.pushManager.subscribe({
                             userVisibleOnly: true,
                             applicationServerKey: urlBase64ToUint8Array(ntfyPublicKey)
@@ -100,12 +101,13 @@
                             body: JSON.stringify(subscription),
                             headers: { 'Content-Type': 'application/json' }
                         });
-                        console.log("Background channel linked.");
+                        console.log("Background channel linked successfully.");
                     }
                 } catch (err) { console.log("Push sub fail:", err); }
             }
         }
 
+        // REQUIRED UTILITY: Converts string format into the binary buffer required by browser APIs
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
