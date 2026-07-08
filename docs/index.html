@@ -90,47 +90,32 @@
         function closeIosModal() { iosModal.style.display = "none"; }
 
        async function startListening() {
-    isListening = true;
-    statusText.innerText = "Listening for Mindfulness Gong";
-    statusText.style.color = "mediumvioletred";
-    statusText.style.borderColor = "#006611";
-
-    if (swRegistration) {
-        try {
-            // Query ntfy's direct public webpush info endpoint to fetch parameters dynamically
-            const keyResponse = await fetch('https://ntfy.sh/v1/webpush');
-            
-            let ntfyPublicKey = '';
-            if (keyResponse.ok) {
-                const keyText = await keyResponse.text();
-                // Extract public key out of the header signature or parameters if present
-                ntfyPublicKey = keyText.trim();
+            isListening = true;
+            statusText.innerText = "Listening for Mindfulness Gong";
+            statusText.style.color = "mediumvioletred";
+            statusText.style.borderColor = "#006611";
+        
+            if (swRegistration) {
+                try {
+                    // Your unique, permanent Web Push certificate key from the Firebase Console
+                    const myFirebasePublicKey = 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok';
+                    
+                    const subscription = await swRegistration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(myFirebasePublicKey)
+                    });
+        
+                    // Log this JSON object out to your console. 
+                    // You will copy this object once and paste it directly into your free cron job configuration!
+                    console.log("COPY THIS SUBSCRIPTION OBJECT:", JSON.stringify(subscription));
+                    
+                    statusText.innerText = "Connected to FCM Cloud Network";
+                    statusText.style.color = "green";
+                } catch (err) { 
+                    console.log("FCM Setup fail:", err); 
+                }
             }
-
-            // Fallback: If the dynamic handshake fails, use the official persistent key 
-            // used by the ntfy system cluster (this has been standard since their PWA release)
-            if (!ntfyPublicKey) {
-                ntfyPublicKey = 'BIEg7gN6gT9Ror5p0SAn00w7f_q_D88z_3ZzK5H12O1S_TDksI6gO1V6g-N1SIml874S_A8q_fSAs_A6gO1V6g';
-            }
-
-            const subscription = await swRegistration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(ntfyPublicKey)
-            });
-
-            await fetch(`https://ntfy.sh/${TOPIC_NAME}/webpush`, {
-                method: 'POST',
-                body: JSON.stringify(subscription),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            console.log("Background channel dynamically linked successfully.");
-        } catch (err) { 
-            console.log("Push sub fail:", err); 
-            statusText.innerText = "Connection Failed. Retrying...";
         }
-    }
-}
-
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
