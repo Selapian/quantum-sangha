@@ -97,7 +97,6 @@
         
             if (swRegistration) {
                 try {
-                    // Your unique, permanent Web Push certificate key from the Firebase Console
                     const myFirebasePublicKey = 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok';
                     
                     const subscription = await swRegistration.pushManager.subscribe({
@@ -105,14 +104,22 @@
                         applicationServerKey: urlBase64ToUint8Array(myFirebasePublicKey)
                     });
         
-                    // Log this JSON object out to your console. 
-                    // You will copy this object once and paste it directly into your free cron job configuration!
-                    console.log("COPY THIS SUBSCRIPTION OBJECT:", JSON.stringify(subscription));
+                    // Extract the clean token string
+                    const cleanToken = subscription.endpoint.split('/fcm/send/')[1];
                     
-                    statusText.innerText = "Connected to FCM Cloud Network";
+                    // SILENT ANONYMOUS SUBSCRIBE: Register this anonymous device directly to your shared topic name
+                    // No database, no storage, no tracking.
+                    await fetch(`https://iid.googleapis.com/v1/iid/info/${cleanToken}/rel/topics/${TOPIC_NAME}`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + 'YOUR_PUBLIC_VAPID_OR_PROJECT_CONTEXT' // We will simplify this via a direct FCM web hook
+                        }
+                    });
+                    
+                    statusText.innerText = "Connected to Quantum Sangha";
                     statusText.style.color = "green";
                 } catch (err) { 
-                    console.log("FCM Setup fail:", err); 
+                    console.log("FCM Topic connection fail:", err); 
                 }
             }
         }
