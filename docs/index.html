@@ -183,7 +183,7 @@
         function startListening() {
             isListening = true;
             statusText.innerText = "Listening for Mindfulness Gong";
-            statusText.style.color = "seagreen";
+            statusText.style.color = "mediumvioletred";
             statusText.style.borderColor = "#333";
 
             const eventSource = new EventSource(`https://ntfy.sh/${TOPIC_NAME}/sse`);
@@ -195,7 +195,7 @@
 
                 setTimeout(() => {
                     statusText.innerText = "Listening for Mindfulness Gong";
-                    statusText.style.color = "seagreen";
+                    statusText.style.color = "mediumvioletred";
                     statusText.style.borderColor = "#333";
                 }, 5000);
             };
