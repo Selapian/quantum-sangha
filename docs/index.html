@@ -4,40 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quantum Gong</title>
-    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="manifest" href="manifest.json?v=11">
     <style>
         body { 
-            background: gold; /* Restored your bright gold background */
-            color: #111111; /* FIXED: Dark charcoal text so it's perfectly visible */
+            background: gold; /* Your exact bright gold background */
+            color: #111111; /* Dark charcoal header/base text */
             font-family: monospace; 
             text-align: center; 
-            padding-top: 30vh; 
             margin: 0; 
-            height: 100%;
-            width: 100%;
+            height: 100vh; /* Keeps content bounded precisely inside the mobile frame */
+            width: 100vw;
             box-sizing: border-box; 
-            position: absolute;
+            display: flex; /* FIXED: Use flex positioning so elements can't slide off-screen */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
         }
         h1 { 
             font-size: 22px; 
             text-shadow: 0 0 1px rgba(0,0,0,0.2); 
-            margin-bottom: 30px;
-            color: #111111; /* Visible dark header */
+            margin: 0 0 30px 0; /* Keeps a consistent gap above the button */
+            color: #111111; 
         }
         .btn { 
             font-size: 1.3rem; 
-            color: blue; /* Clear readable text */
+            color: blue; /* Your exact default blue button text style */
             transition: all 0.3s ease;
             cursor: pointer;
             display: inline-block;
             padding: 15px 30px;
-            border: 2px solid #111111; /* Clean dark border */
+            border: 2px solid #111111; 
             border-radius: 4px;
             user-select: none;
             max-width: 80%;
             line-height: 1.6;
-            margin: 10px;
-            background: rgba(255, 255, 255, 0.3); /* Translucent background to pop from the gold */
+            background: rgba(255, 255, 255, 0.3); 
         }
         .btn:hover {
             background: rgba(255, 255, 255, 0.5);
@@ -98,7 +100,7 @@
 
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=9');
+            navigator.serviceWorker.register('./sw.js?v=11');
           });
         }
 
@@ -137,6 +139,7 @@
             }
         });
 
+        // FIXED: Changes button color to green when locked in browser mode
         function lockBrowserInterface() {
             statusText.innerText = "App Already Installed. Check Home Screen.";
             statusText.classList.add('locked');
