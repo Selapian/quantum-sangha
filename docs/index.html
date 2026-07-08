@@ -19,7 +19,7 @@
 <body>
 
     <h1>⚛️ QUANTUM GONG ⚛️</h1>
-    <div id="status" class="btn" onclick="handleInstallAction()">Detecting Status...</div>
+    <div id="status" class="btn" onclick="handleInstallAction()">Loading...</div>
 
     <div id="iosModal">
         <button onclick="closeIosModal()">X</button>
@@ -29,7 +29,7 @@
     </div>
 
     <script>
-        let deferredPrompt, appInstalledDetermined = false, isListening = false, swRegistration = null;
+        let deferredPrompt, swRegistration = null;
         const statusText = document.getElementById('status'), iosModal = document.getElementById('iosModal');
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -41,33 +41,32 @@
           });
         }
 
-        window.addEventListener('appinstalled', () => { appInstalledDetermined = true; lockBrowserInterface(); });
         window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault(); deferredPrompt = e;
-            if (!isStandalone && !appInstalledDetermined) {
-                statusText.innerText = "Install Android App"; statusText.style.color = "#0044cc"; statusText.style.borderColor = "#111111"; statusText.classList.remove('locked');
+            e.preventDefault();
+            deferredPrompt = e;
+            if (!isStandalone) {
+                statusText.innerText = "Install Android App";
+                statusText.style.color = "#0044cc";
             }
         });
 
         window.addEventListener('DOMContentLoaded', () => {
             if (isStandalone) {
-                statusText.innerText = "Tap to Connect & Listen"; statusText.style.color = "blue"; statusText.style.borderColor = "#111111";
+                statusText.innerText = "Tap to Connect & Listen";
+            } else if (isIOS) {
+                statusText.innerText = "Add to Home Screen (iOS)";
             } else {
-                setTimeout(() => {
-                    if (isIOS) {
-                        statusText.innerText = "Add to Home Screen (iOS)"; statusText.style.color = "blue"; statusText.style.borderColor = "#111111";
-                    } else if (!deferredPrompt && !isStandalone) { lockBrowserInterface(); }
-                }, 1200); 
+                statusText.innerText = "Install App to Begin";
             }
         });
 
         function lockBrowserInterface() {
-            statusText.innerText = "App Already Installed. Check Home Screen."; statusText.classList.add('locked'); statusText.style.color = "green"; statusText.style.borderColor = "#006633";
+            statusText.innerText = "App Installed & Active";
+            statusText.classList.add('locked');
         }
 
         async function handleInstallAction() {
-            if (isStandalone && !isListening) {
-                // 1. Request permission IMMEDIATELY inside the click handler to satisfy the user-gesture rule
+            if (isStandalone) {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
                     startListening();
@@ -78,55 +77,53 @@
                 return;
             }
 
-            if (statusText.classList.contains('locked') || isStandalone) return;
-            if (isIOS) { iosModal.style.display = "block"; } 
-            else if (deferredPrompt) {
+            if (isIOS) {
+                iosModal.style.display = "block";
+            } else if (deferredPrompt) {
                 deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice; deferredPrompt = null;
-                if (outcome === 'accepted') { lockBrowserInterface(); }
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    deferredPrompt = null;
+                    lockBrowserInterface();
+                }
+            } else {
+                statusText.innerText = "App Already Installed";
             }
         }
 
         function closeIosModal() { iosModal.style.display = "none"; }
 
-       async function startListening() {
-    isListening = true;
-    statusText.innerText = "Listening for Mindfulness Gong";
-    statusText.style.color = "mediumvioletred";
-    statusText.style.borderColor = "#006611";
+        async function startListening() {
+            statusText.innerText = "Connecting...";
+            if (!swRegistration) return;
+            
+            try {
+                const myFirebasePublicKey = 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok';
+                const subscription = await swRegistration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(myFirebasePublicKey)
+                });
 
-    if (swRegistration) {
-        try {
-            const myFirebasePublicKey = 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok';
-            
-            const subscription = await swRegistration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(myFirebasePublicKey)
-            });
+                const cleanToken = subscription.endpoint.split('/fcm/send/')[1];
+                
+                const response = await fetch("https://Selapian-subscribe_topic.web.val.run", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: cleanToken, topic: TOPIC_NAME })
+                });
 
-            // Extract the clean token string safely
-            const cleanToken = subscription.endpoint.split('/fcm/send/')[1];
-            
-            // Hit your new anonymous Val.Town bridge endpoint instead of Google
-            // Swap out 'yourusername' with your actual Val.Town account name
-            await fetch("https://Selapian-subscribe_topic.web.val.run", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: cleanToken,
-                    topic: TOPIC_NAME
-                })
-            });
-            
-            statusText.innerText = "Connected to Quantum Sangha";
-            statusText.style.color = "green";
-        } catch (err) { 
-            console.log("FCM Topic connection fail:", err); 
-            statusText.innerText = "Connection Failed";
-            statusText.style.color = "red";
+                if (response.ok) {
+                    statusText.innerText = "Connected to Quantum Sangha";
+                    statusText.style.color = "green";
+                } else {
+                    throw new Error("Bridge connection failed");
+                }
+            } catch (err) { 
+                console.log(err);
+                statusText.innerText = "Connection Failed";
+            }
         }
-    }
-}
+
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -138,16 +135,13 @@
             return outputArray;
         }
 
-        // Add this inside the script tag of index.html to catch background thread audio requests
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.command === "play_gong") {
-            const audio = new Audio('./gong.mp3');
-            audio.crossOrigin = "anonymous";
-            audio.play().catch(err => console.log("Audio play blocked by context:", err));
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data?.command === "play_gong") {
+                    new Audio('./gong.mp3').play().catch(e => console.log(e));
+                }
+            });
         }
-    });
-}
     </script>
 </body>
 </html>
