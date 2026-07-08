@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quantum-gong-v14';
+const CACHE_NAME = 'quantum-gong-v17';
 const ASSETS = [
   './',
   './index.html',
@@ -8,35 +8,21 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches.keys().then((keys) => Promise.all(keys.map((key) => key !== CACHE_NAME && caches.delete(key)))).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
-    })
-  );
+  event.respondWith(caches.match(event.request).then((cachedResponse) => cachedResponse || fetch(event.request)));
 });
 
-// SILENT PUSH CHANNEL: Intercepts the OS-level background signal
+// SILENT PUSH CHANNEL: Intercepts ntfy.sh background signal while phone is closed
 self.addEventListener('push', (event) => {
   console.log("Background token event detected. Audio rendering engine triggered.");
   
@@ -48,7 +34,7 @@ self.addEventListener('push', (event) => {
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       
-      // FIXED: Reset head tracker to zero so overlapping cron triggers don't freeze playback states
+      // Reset head tracker to zero so overlapping cron triggers play cleanly
       audio.currentTime = 0;
       
       // Forces playback directly on the hardware path while phone is closed
