@@ -90,39 +90,43 @@
         function closeIosModal() { iosModal.style.display = "none"; }
 
        async function startListening() {
-            isListening = true;
-            statusText.innerText = "Listening for Mindfulness Gong";
-            statusText.style.color = "mediumvioletred";
-            statusText.style.borderColor = "#006611";
-        
-            if (swRegistration) {
-                try {
-                    const myFirebasePublicKey = 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok';
-                    
-                    const subscription = await swRegistration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(myFirebasePublicKey)
-                    });
-        
-                    // Extract the clean token string
-                    const cleanToken = subscription.endpoint.split('/fcm/send/')[1];
-                    
-                    // SILENT ANONYMOUS SUBSCRIBE: Register this anonymous device directly to your shared topic name
-                    // No database, no storage, no tracking.
-                    await fetch(`https://iid.googleapis.com/v1/iid/info/${cleanToken}/rel/topics/${TOPIC_NAME}`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer ' + 'YOUR_PUBLIC_VAPID_OR_PROJECT_CONTEXT' // We will simplify this via a direct FCM web hook
-                        }
-                    });
-                    
-                    statusText.innerText = "Listening for Mindfulness Gong";
-                    statusText.style.color = "green";
-                } catch (err) { 
-                    console.log("FCM Topic connection fail:", err); 
-                }
-            }
+    isListening = true;
+    statusText.innerText = "Listening for Mindfulness Gong";
+    statusText.style.color = "mediumvioletred";
+    statusText.style.borderColor = "#006611";
+
+    if (swRegistration) {
+        try {
+            const myFirebasePublicKey = 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok';
+            
+            const subscription = await swRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(myFirebasePublicKey)
+            });
+
+            // Extract the clean token string safely
+            const cleanToken = subscription.endpoint.split('/fcm/send/')[1];
+            
+            // Hit your new anonymous Val.Town bridge endpoint instead of Google
+            // Swap out 'yourusername' with your actual Val.Town account name
+            await fetch("https://Selapian-subscribe_topic.web.val.run", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: cleanToken,
+                    topic: TOPIC_NAME
+                })
+            });
+            
+            statusText.innerText = "Connected to Quantum Sangha";
+            statusText.style.color = "green";
+        } catch (err) { 
+            console.log("FCM Topic connection fail:", err); 
+            statusText.innerText = "Connection Failed";
+            statusText.style.color = "red";
         }
+    }
+}
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
