@@ -88,13 +88,16 @@
                 try {
                     const permission = await Notification.requestPermission();
                     if (permission === 'granted') {
-                        const ntfyPublicKey = 'BIEg7gN6gT9Ror5p0SAn00w7f_q_D88z_3ZzK5H12O1S_TDksI6gO1V6g-N1SIml874S_A8q_fSAs_A6gO1V6g';
-                        
-                        // FIXED: Wrapped the raw key string in the parsing array utility below
-                        const subscription = await swRegistration.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(ntfyPublicKey)
-                        });
+                    // Fetch the live, valid public VAPID key directly from the server to prevent string corruption
+                    const response = await fetch('https://ntfy.sh/v1/webpush/key');
+                    const data = await response.json();
+                    const ntfyPublicKey = data.publicKey; 
+                    
+                    // Pass it safely through your binary conversion array logic
+                    const subscription = await swRegistration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(ntfyPublicKey)
+                    });
 
                         await fetch(`https://ntfy.sh/${TOPIC_NAME}/webpush`, {
                             method: 'POST',
