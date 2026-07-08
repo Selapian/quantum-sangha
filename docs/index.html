@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quantum Gong</title>
-    <link rel="manifest" href="manifest.json?v=2">
+    <link rel="manifest" href="manifest.json?v=5">
     <style>
         body { 
             background: gold; 
@@ -13,18 +13,17 @@
             text-align: center; 
             padding-top: 30vh; 
             margin: 0; 
-            border:8px dotted white;
-            height:100%;
-            width:100%;
-            box-sizing: border-box; /* FIXED: Includes the 8px border inside the 100% width calculation */
-            position:absolute;
+            height: 100%;
+            width: 100%;
+            box-sizing: border-box; 
+            position: absolute;
         }
         h1 { 
             font-size: 22px; 
             text-shadow: 0 0 10px black; 
             margin-bottom: 30px;
         }
-        #status { 
+        .btn { 
             font-size: 1.3rem; 
             color: skyblue; 
             transition: all 0.3s ease;
@@ -35,6 +34,132 @@
             border-radius: 4px;
             user-select: none;
             max-width: 80%;
+            line-height: 1.6;
+            margin: 10px;
+        }
+        .btn:hover {
+            border-color: blue;
+            color: green;
+        }
+        /* iOS Instruction Modal Overlay */
+        #iosModal {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid gold;
+            width: 85%;
+            box-shadow: 0 0 20px black;
+            z-index: 999;
+            text-align: left;
+        }
+        #iosModal h3 { margin: 0 0 10px 0; color: gold; text-align: center; }
+        #iosModal button { 
+            background: red; color: white; border: none; padding: 5px 10px; border-radius: 4px; float: right; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚛️ QUANTUM GONG ⚛️</h1>
+    
+    <div id="status" class="btn" onclick="handleInstallAction()">Tap to Install App</div>
+
+    <div id="iosModal">
+        <button onclick="closeIosModal()">X</button>
+        <h3>iPhone Installation</h3>
+        <p>1. Tap the <strong>Share</strong> button at the bottom of Safari (the square with an up arrow).</p>
+        <p>2. Scroll down and select <strong>"Add to Home Screen"</strong>.</p>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        const statusText = document.getElementById('status');
+        const iosModal = document.getElementById('iosModal');
+
+        // Detect OS profiles
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const TOPIC_NAME = "quantum_sangha_groupie";
+
+        // Register Service Worker early
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js?v=5')
+              .then((reg) => console.log('SW Active', reg.scope))
+              .catch((err) => console.error('SW Fail:', err));
+          });
+        }
+
+        // Android Native Setup: Intercept the install option
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (!isStandalone) {
+                statusText.innerText = "Install Android App";
+                statusText.style.color = "skyblue";
+            }
+        });
+
+        // Initialize state configuration on load
+        window.addEventListener('DOMContentLoaded', () => {
+            if (isStandalone) {
+                startListening();
+            } else if (isIOS) {
+                statusText.innerText = "Add to Home Screen (iOS)";
+                statusText.style.color = "gold";
+            }
+        });
+
+        // Smart Button Controller
+        async function handleInstallAction() {
+            if (isStandalone) return;
+
+            if (isIOS) {
+                iosModal.style.display = "block";
+            } else if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User installation choice: ${outcome}`);
+                deferredPrompt = null;
+                startListening();
+            } else {
+                statusText.innerText = "Initializing... Tap again.";
+            }
+        }
+
+        function closeIosModal() {
+            iosModal.style.display = "none";
+        }
+
+        function startListening() {
+            statusText.innerText = "Listening for Mindfulness Gong";
+            statusText.style.color = "seagreen";
+            statusText.style.borderColor = "#333";
+
+            // Open foreground listener connection for active tab state monitoring
+            const eventSource = new EventSource(`https://ntfy.sh/${TOPIC_NAME}/sse`);
+            
+            eventSource.onmessage = () => {
+                statusText.innerText = "Bell Rung";
+                statusText.style.color = "blue";
+                statusText.style.borderColor = "#00ff99";
+
+                setTimeout(() => {
+                    statusText.innerText = "Listening for Mindfulness Gong";
+                    statusText.style.color = "seagreen";
+                    statusText.style.borderColor = "#333";
+                }, 5000);
+            };
+        }
+    </script>
+</body>
+</html>            max-width: 80%;
             line-height: 1.6;
         }
         #status:hover {
