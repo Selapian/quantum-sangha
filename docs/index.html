@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quantum Gong</title>
-    <link rel="manifest" href="manifest.json?v=17">
+    <link rel="manifest" href="manifest.json?v=18">
     <style>
         body { 
             background: gold; 
@@ -90,7 +90,7 @@
         let deferredPrompt;
         let appInstalledDetermined = false;
         let isListening = false;
-        let swRegistration = null; // Track service worker reference for background push links
+        let swRegistration = null;
         const statusText = document.getElementById('status');
         const iosModal = document.getElementById('iosModal');
 
@@ -100,7 +100,7 @@
 
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=17').then(reg => {
+            navigator.serviceWorker.register('./sw.js?v=18').then(reg => {
                 swRegistration = reg;
             });
           });
@@ -149,12 +149,9 @@
         }
 
         async function handleInstallAction() {
+            // FIXED: Removed the play-on-load priming logic that caused iOS auto-play bugs
             if (isStandalone && !isListening) {
-                const primeAudio = new Audio('./gong.mp3');
-                primeAudio.play().then(() => {
-                    primeAudio.pause();
-                    startListening(); 
-                }).catch(e => console.log("Audio prime failure:", e));
+                startListening();
                 return;
             }
 
@@ -184,7 +181,6 @@
             statusText.style.color = "mediumvioletred";
             statusText.style.borderColor = "#006611";
 
-            // Establish background handshake linking ntfy.sh directly to the closed worker
             if (swRegistration) {
                 try {
                     const permission = await Notification.requestPermission();
@@ -207,23 +203,6 @@
                 }
             }
 
-            // Foreground SSE channel link
-            const eventSource = new EventSource(`https://ntfy.sh/${TOPIC_NAME}/sse`);
-            eventSource.onmessage = () => {
-                triggerGongUI();
-            };
-        }
-
-        function triggerGongUI() {
-            statusText.innerText = "Bell Rung";
-            statusText.style.color = "black";
-            statusText.style.borderColor = "#6600cc";
-
-            setTimeout(() => {
-                statusText.innerText = "Listening for Mindfulness Gong";
-                statusText.style.color = "mediumvioletred";
-                statusText.style.borderColor = "#006611";
-            }, 5000);
         }
 
         function urlBase64ToUint8Array(base64String) {
