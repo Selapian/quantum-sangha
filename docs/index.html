@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quantum Gong</title>
-    <link rel="manifest" href="manifest.json?v=12">
+    <link rel="manifest" href="manifest.json?v=13">
     <style>
         body { 
             background: gold; 
@@ -77,7 +77,6 @@
 
     <h1>⚛️ QUANTUM GONG ⚛️</h1>
     
-    <!-- Changed default state string to reflect loading/checking sequence -->
     <div id="status" class="btn" onclick="handleInstallAction()">Detecting Status...</div>
 
     <div id="iosModal">
@@ -91,6 +90,7 @@
         let deferredPrompt;
         let appInstalledDetermined = false;
         let isListening = false;
+        let swRegistration = null;
         const statusText = document.getElementById('status');
         const iosModal = document.getElementById('iosModal');
 
@@ -100,7 +100,9 @@
 
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js?v=12');
+            navigator.serviceWorker.register('./sw.js?v=13').then(reg => {
+                swRegistration = reg;
+            });
           });
         }
 
@@ -109,7 +111,6 @@
             lockBrowserInterface();
         });
 
-        // Captures Android browser event and forces button text to layout configuration instantly
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
@@ -124,20 +125,16 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             if (isStandalone) {
-                // APP MODE: Running standalone from Home screen on either iOS or Android
                 statusText.innerText = "Tap to Connect & Listen";
                 statusText.style.color = "blue";
                 statusText.style.borderColor = "#111111";
             } else {
-                // BROWSER MODE: Run state checks after layout engine renders
                 setTimeout(() => {
                     if (isIOS) {
-                        // FIXED syntax bug here: Added missing assignment operator '='
                         statusText.innerText = "Add to Home Screen (iOS)";
                         statusText.style.color = "blue";
                         statusText.style.borderColor = "#111111";
                     } else if (!deferredPrompt) {
-                        // If Android and beforeinstallprompt hasn't fired, it is already on device
                         lockBrowserInterface();
                     }
                 }, 800); 
@@ -153,6 +150,7 @@
 
         async function handleInstallAction() {
             if (isStandalone && !isListening) {
+                // Prime the local web audio pipeline
                 const primeAudio = new Audio('./gong.mp3');
                 primeAudio.play().then(() => {
                     primeAudio.pause();
@@ -181,25 +179,66 @@
             iosModal.style.display = "none";
         }
 
-        function startListening() {
+        async function startListening() {
             isListening = true;
             statusText.innerText = "Listening for Mindfulness Gong";
             statusText.style.color = "mediumvioletred";
             statusText.style.borderColor = "#006611";
 
-            const eventSource = new EventSource(`https://ntfy.sh/${TOPIC_NAME}/sse`);
-            
-            eventSource.onmessage = () => {
-                statusText.innerText = "Bell Rung";
-                statusText.style.color = "black";
-                statusText.style.borderColor = "#6600cc";
+            // Establish background handshake linking ntfy.sh directly to the worker
+            if (swRegistration) {
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        // Public key provided by ntfy.sh for browser generation delivery mapping
+                        const ntfyPublicKey = 'BIEg7gN6gT9Ror5p0SAn00w7f_q_D88z_3ZzK5H12O1S_TDksI6gO1V6g-N1SIml874S_A8q_fSAs_A6gO1V6g';
+                        const convertedKey = urlBase64ToUint8Array(ntfyPublicKey);
 
-                setTimeout(() => {
-                    statusText.innerText = "Listening for Mindfulness Gong";
-                    statusText.style.color = "mediumvioletred";
-                    statusText.style.borderColor = "#006611";
-                }, 5000);
+                        const subscription = await swRegistration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: convertedKey
+                        });
+
+                        await fetch(`https://ntfy.sh/${TOPIC_NAME}/webpush`, {
+                            method: 'POST',
+                            body: JSON.stringify(subscription),
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        console.log("Background channel successfully established.");
+                    }
+                } catch (err) {
+                    console.log("Background engine setup skip/fail:", err);
+                }
+            }
+
+            // Foreground SSE fall-back path
+            const eventSource = new EventSource(`https://ntfy.sh/${TOPIC_NAME}/sse`);
+            eventSource.onmessage = () => {
+                triggerGongUI();
             };
+        }
+
+        function triggerGongUI() {
+            statusText.innerText = "Bell Rung";
+            statusText.style.color = "black";
+            statusText.style.borderColor = "#6600cc";
+
+            setTimeout(() => {
+                statusText.innerText = "Listening for Mindfulness Gong";
+                statusText.style.color = "mediumvioletred";
+                statusText.style.borderColor = "#006611";
+            }, 5000);
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
         }
     </script>
 </body>
