@@ -14,19 +14,48 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
+  console.log("Push signal caught.");
+
+  let isGongTriggered = false;
+  let notificationTitle = 'Quantum Gong';
+  let notificationBody = '⚛️ The bell is ringing...';
+
+  // Parse incoming data payload if it exists (Desktop fallback path)
+  if (event.data) {
+    try {
+      const payloadData = event.data.json();
+      if (payloadData.ring === "true") {
+        isGongTriggered = true;
+      }
+      if (payloadData.title) notificationTitle = payloadData.title;
+      if (payloadData.body) notificationBody = payloadData.body;
+    } catch (e) {
+      // If payload isn't JSON, check if it's text
+      if (event.data.text() === "ring") isGongTriggered = true;
+    }
+  }
+
+  // Mobile fallback path: If data payload was stripped but a push event arrived, 
+  // assume it's our notification event and fire the audio anyway.
+  if (!isGongTriggered) {
+    isGongTriggered = true; 
+  }
+
   event.waitUntil(
     Promise.all([
-      self.registration.showNotification('Quantum Gong', {
-        body: '⚛️ The bell is ringing...',
-        tag: 'gong-alert'
+      // Only show notification if desktop didn't auto-render it via the notification block
+      self.registration.showNotification(notificationTitle, {
+        body: notificationBody,
+        tag: 'gong-alert',
+        renotify: true
       }),
 
+      // Sound Engine Execution Loop
       caches.match('./gong.mp3').then(async (response) => {
         if (!response) return;
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
-        console.log("Gong Rung!");
         audio.currentTime = 0;
         return audio.play();
       })
