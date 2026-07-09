@@ -21,7 +21,16 @@
 
     <h1>⚛️ QUANTUM GONG ⚛️</h1>
     <div id="status" class="btn" onclick="handleInstallAction()">Loading...</div>
+    <div id="install-instructions" style="color: white; padding: 20px;">
+      <p>
+        Quantum Gong is an innovative Quantum Mindfulness Bell, which rings at Quantum Random times, using a free Quantum Random Number Generator (QRNG). The QRNG pushes the same "True Random" Gong Sound, all at the same time, to everyone connected to the app. When we each hear the Gong Sound, we all practice Mindfulness, or sit and meditate, to cultivate ourselves!
+      </p>
+      <p>
+        Because websites cannot push notifications while the screen is closed, it is necessary to install "Quantum Gong" as an Android App, or, if on iOS (Apple), press the three dots, then Press "Share", and scroll down to "Add to Home Screen." Then Open 'Quantum Gong' like a native app from your Home Screen. If you are on Desktop, please use Google Chrome, install the App, then open "Quantum Gong" from the Desktop.
+      </p>
+    </div>
 
+<div id="app-status" style="color: white; font-weight: bold;"></div>
     <div id="iosModal">
         <button onclick="closeIosModal()">X</button>
         <h3>iPhone Installation</h3>
@@ -49,37 +58,70 @@
             });
         }
 
+        function checkInstallationStatus() {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            const installInstructions = document.getElementById('install-instructions');
+            const appStatusText = document.getElementById('app-status');
+        
+            if (isStandalone) {
+              // User is running the installed PWA
+              if (installInstructions) installInstructions.style.display = 'none';
+              if (appStatusText) appStatusText.innerText = "Quantum Gong is running as a Native App! ⚛️";
+            } else {
+              // User is in a regular browser
+              if (appStatusText) appStatusText.innerText = "Please install Quantum Gong as a Native App.";
+            }
+          }
+        
+          // Run the check when the page loads
+          window.addEventListener('load', checkInstallationStatus);
+
+        window.addEventListener('appinstalled', () => { appInstalledDetermined = true; lockBrowserInterface(); });
         window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            if (!isStandalone) statusText.innerText = "Install Android App";
+            e.preventDefault(); deferredPrompt = e;
+            if (!isStandalone && !appInstalledDetermined) {
+                statusText.innerText = "Install Android App"; statusText.style.color = "#0044cc"; statusText.style.borderColor = "#111111"; statusText.classList.remove('locked');
+            }
         });
 
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const isStandaloneNow = window.matchMedia('(display-mode: standalone)').matches;
-                if (isStandaloneNow) statusText.innerText = "Tap to Connect & Listen";
-                else if (isIOS) statusText.innerText = "Add to Home Screen (iOS)";
-                else statusText.innerText = "Install App to Begin";
-            }, 500); 
+        window.addEventListener('DOMContentLoaded', () => {
+            if (isStandalone) {
+                statusText.innerText = "Tap to Connect & Listen"; statusText.style.color = "blue"; statusText.style.borderColor = "#111111";
+            } else {
+                setTimeout(() => {
+                    if (isIOS) {
+                        statusText.innerText = "Add to Home Screen (iOS)"; statusText.style.color = "blue"; statusText.style.borderColor = "#111111";
+                    } else if (!deferredPrompt && !isStandalone) { lockBrowserInterface(); }
+                }, 1200); 
+            }
         });
+
+        function lockBrowserInterface() {
+            statusText.innerText = "App Already Installed. Check Home Screen."; statusText.classList.add('locked'); statusText.style.color = "green"; statusText.style.borderColor = "#006633";
+        }
 
         async function handleInstallAction() {
-            if (isStandalone) {
+            if (isStandalone && !isListening) {
                 const permission = await Notification.requestPermission();
-                if (permission === 'granted') startListening();
-                else statusText.innerText = "Permission Denied";
-            } else if (isIOS) {
-                iosModal.style.display = "block";
-            } else if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    deferredPrompt = null;
-                    statusText.innerText = "App Installed! Open from Home Screen.";
+                if (permission === 'granted') {
+                    startListening();
+                } else {
+                    statusText.innerText = "Permission Denied";
+                    statusText.style.color = "red";
                 }
+                return;
+            }
+
+            if (statusText.classList.contains('locked') || isStandalone) return;
+            if (isIOS) { iosModal.style.display = "block"; } 
+            else if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice; deferredPrompt = null;
+                if (outcome === 'accepted') { lockBrowserInterface(); }
             }
         }
+
+        function closeIosModal() { iosModal.style.display = "none"; }
 
         async function startListening() {
             statusText.innerText = "Connecting...";
