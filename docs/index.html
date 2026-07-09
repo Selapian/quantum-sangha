@@ -51,6 +51,9 @@
         
         const iosModal = document.getElementById('iosModal');
         const installInstructions = document.getElementById('install-instructions');
+        
+        // Declare the HTML5 audio object globally at the start
+        const gongAudio = new Audio('./gong.mp3');
 
         // Safe global helper functions to check environments dynamically
         function getIsStandalone() {
@@ -71,28 +74,24 @@
             if (isListening) return; // Keep "Connected" text if listening
 
             if (isStandalone) {
-                // Condition A: App is installed and running inside its own window
                 if (installInstructions) installInstructions.style.display = 'none';
                 statusText.innerText = "Tap to Connect & Listen"; 
                 statusText.style.color = "blue"; 
                 statusText.style.borderColor = "#111111";
                 statusText.classList.remove('locked');
             } else if (isIOS) {
-                // Condition B: Standard browser window on an iOS device
                 if (installInstructions) installInstructions.style.display = 'block';
                 statusText.innerText = "Add to Home Screen (iOS)"; 
                 statusText.style.color = "blue"; 
                 statusText.style.borderColor = "#111111";
                 statusText.classList.remove('locked');
             } else if (deferredPrompt) {
-                // Condition C: Standard Desktop/Android browser, PWA can be explicitly installed
                 if (installInstructions) installInstructions.style.display = 'block';
                 statusText.innerText = "Install Quantum Gong App"; 
                 statusText.style.color = "#0044cc"; 
                 statusText.style.borderColor = "#111111"; 
                 statusText.classList.remove('locked');
             } else {
-                // Condition D: Fallback while waiting for browser event loops
                 if (!appInstalledDetermined) {
                     statusText.innerText = "Checking App Status...";
                     statusText.style.color = "black";
@@ -111,6 +110,17 @@
         
         // --- 3. Event Listeners ---
         
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data?.command === "play_gong") {
+                    console.log("Push received while app is open.");
+                    // Play the predefined audio pipeline element
+                    gongAudio.currentTime = 0;
+                    gongAudio.play().catch(e => console.log("Playback failed:", e));
+                }
+            });
+        }
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); 
             deferredPrompt = e;
@@ -145,93 +155,16 @@
         
             if (!statusText) return;
 
-            // If it's already running natively, trigger connection/listening flow
-            // --- Update this specific block inside handleInstallAction() ---
             if (isStandalone && !isListening) {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    // CRITICAL FOR iOS: Play and immediately pause the audio within this user gesture.
-                    // This permanently unlocks the audio channel for this app session!
-                    globalGongAudio.play().then(() => {
-                        globalGongAudio.pause();
-                        globalGongAudio.currentTime = 0;
-                        console.log("Audio context successfully unlocked for iOS background triggers.");
+                    // Unified variable name: primes the active audio channel for iOS
+                    gongAudio.play().then(() => {
+                        gongAudio.pause();
+                        gongAudio.currentTime = 0;
+                        console.log("HTML5 Audio context verified and unlocked.");
                     }).catch(err => console.log("Audio priming failed:", err));
             
                     startListening();
                 } else {
-                    statusText.innerText = "Permission Denied";
-                    statusText.style.color = "red";
-                }
-                return;
-            }
-        
-            if (statusText.classList.contains('locked') || isStandalone) return;
-            
-            if (isIOS) { 
-                if (iosModal) iosModal.style.display = "block"; 
-            } else if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice; 
-                deferredPrompt = null;
-                if (outcome === 'accepted') { 
-                    lockBrowserInterface(); 
-                }
-            }
-        }
-        
-        function closeIosModal() { 
-            if (iosModal) iosModal.style.display = "none"; 
-        }
-
-        // 1. Declare the audio object globally at the very top of your script
-        const gongAudio = new Audio('./gong.mp3');
-        
-        // 2. Update your Service Worker message listener to reuse this EXACT object
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data?.command === "play_gong") {
-                    console.log("Push received while app is open.");
-                    
-                    // CRITICAL FOR iOS OPEN STATE: Reuse the primed object, don't create a new one!
-                    gongAudio.currentTime = 0;
-                    gongAudio.play().catch(e => console.log("Playback failed:", e));
-                }
-            });
-        }
-
-        // 3. Update your startListening function to prime it during the user tap
-        async function startListening() {
-            const statusText = document.getElementById('status');
-            statusText.innerText = "Connecting...";
-            
-            // CRITICAL FOR iOS USER GESTURE REQUIREMENT:
-            // We must play and instantly pause the global audio file right here.
-            // This permanently unlocks this specific audio instance for background push events!
-            gongAudio.play().then(() => {
-                gongAudio.pause();
-                gongAudio.currentTime = 0;
-                console.log("HTML5 Audio successfully unlocked for iOS foreground triggers.");
-            }).catch(err => console.log("Audio priming failed:", err));
-        
-            try {
-                const registration = await navigator.serviceWorker.register('./sw.js?v=27');
-                const token = await messaging.getToken({ 
-                    vapidKey: 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok',
-                    serviceWorkerRegistration: registration 
-                });
-                await fetch("https://Selapian--84abfed87a0d11f194f71607ee4eb77e.web.val.run?subscribe=" + encodeURIComponent(token));
-                isListening = true;
-                statusText.innerText = "Connected. Listening for Gong...!";
-                statusText.style.color = "#006633";
-                statusText.classList.add('locked');
-            } catch (err) {
-                console.error(err);
-                statusText.innerText = "Connection Failed";
-                statusText.style.color = "red";
-            }
-    }
-
-    </script>
-</body>
-</html>
+                    statusText.
