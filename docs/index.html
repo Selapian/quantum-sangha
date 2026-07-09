@@ -21,6 +21,7 @@
 
     <h1>⚛️ QUANTUM GONG ⚛️</h1>
     <div id="status" class="btn" onclick="handleInstallAction()">Loading...</div>
+    
     <div id="install-instructions" style="color: black; font-size:16px; padding: 20px;">
       <p>
         Quantum Gong is the first Quantum Mindfulness Bell, derived from the practice of Thich Nhat Hanh, which rings at Quantum Random times (about once every 40 minutes), using a free Quantum Random Number Generator (QRNG). The QRNG pushes the same "True Random" Gong Sound, all at the same time, to everyone connected to the app. When we each hear the Gong Sound, we all practice Mindfulness, or sit and meditate, to cultivate ourselves!
@@ -30,8 +31,7 @@
       </p>
     </div>
 
-    <div id="app-status" style="color: white; font-weight: bold;"></div>
-        <div id="iosModal">
+    <div id="iosModal">
         <button onclick="closeIosModal()">X</button>
         <h3>iPhone Installation</h3>
         <p>1. Tap the <strong>...</strong> then <strong>Share</strong> button at the bottom of Safari.</p>
@@ -44,24 +44,14 @@
         firebase.initializeApp(firebaseConfig);
         const messaging = firebase.messaging();
 
-        let deferredPrompt;
-        const statusText = document.getElementById('status'), iosModal = document.getElementById('iosModal');
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-
-        // 1. SERVICE WORKER MESSAGE LISTENER (The bridge)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data?.command === "play_gong") {
-                    new Audio('./gong.mp3').play().catch(e => console.log("Audio play error:", e));
-                }
-            });
-        }
-        
         // --- 1. Global State Variables ---
         let deferredPrompt;
         let appInstalledDetermined = false;
+        let isListening = false;
         
+        const iosModal = document.getElementById('iosModal');
+        const installInstructions = document.getElementById('install-instructions');
+
         // Safe global helper functions to check environments dynamically
         function getIsStandalone() {
             return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
@@ -75,13 +65,11 @@
         function checkInstallationStatus() {
             const isStandalone = getIsStandalone();
             const isIOS = getIsIOS();
-            
-            // Unifies checking for both potential HTML ID targets
-            const statusText = document.getElementById('status-text') || document.getElementById('app-status');
-            const installInstructions = document.getElementById('install-instructions');
+            const statusText = document.getElementById('status');
         
             if (!statusText) return;
-        
+            if (isListening) return; // Keep "Connected" text if listening
+
             if (isStandalone) {
                 // Condition A: App is installed and running inside its own window
                 if (installInstructions) installInstructions.style.display = 'none';
@@ -113,8 +101,8 @@
         }
         
         function lockBrowserInterface() {
-            const statusText = document.getElementById('status-text') || document.getElementById('app-status');
-            if (!statusText) return;
+            const statusText = document.getElementById('status');
+            if (!statusText || isListening) return;
             statusText.innerText = "App Already Installed. Check Home Screen."; 
             statusText.classList.add('locked'); 
             statusText.style.color = "green"; 
@@ -123,10 +111,18 @@
         
         // --- 3. Event Listeners ---
         
+        // Service worker data bridge handler
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data?.command === "play_gong") {
+                    new Audio('./gong.mp3').play().catch(e => console.log("Audio play error:", e));
+                }
+            });
+        }
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); 
             deferredPrompt = e;
-            // Instantly transition button out of checking state when browser prompt is captured
             checkInstallationStatus();
         });
         
@@ -137,10 +133,8 @@
         });
         
         window.addEventListener('DOMContentLoaded', () => {
-            // Break past "Loading..." instantly on initial markup mount
             checkInstallationStatus();
         
-            // Safety fallback timer if browser features are blocked or app is fully installed on Desktop
             if (!getIsStandalone()) {
                 setTimeout(() => {
                     if (!deferredPrompt && !getIsStandalone() && !getIsIOS()) { 
@@ -150,21 +144,21 @@
             }
         });
         
-        // Run check on full assets payload resolution
         window.addEventListener('load', checkInstallationStatus);
         
         // --- 4. Interactive Actions ---
         async function handleInstallAction() {
             const isStandalone = getIsStandalone();
             const isIOS = getIsIOS();
-            const statusText = document.getElementById('status-text') || document.getElementById('app-status');
+            const statusText = document.getElementById('status');
         
             if (!statusText) return;
-        
-            if (isStandalone && typeof isListening !== 'undefined' && !isListening) {
+
+            // If it's already running natively, trigger connection/listening flow
+            if (isStandalone && !isListening) {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    if (typeof startListening === 'function') startListening();
+                    startListening();
                 } else {
                     statusText.innerText = "Permission Denied";
                     statusText.style.color = "red";
@@ -175,7 +169,6 @@
             if (statusText.classList.contains('locked') || isStandalone) return;
             
             if (isIOS) { 
-                const iosModal = document.getElementById('ios-modal');
                 if (iosModal) iosModal.style.display = "block"; 
             } else if (deferredPrompt) {
                 deferredPrompt.prompt();
@@ -192,6 +185,7 @@
         }
 
         async function startListening() {
+            const statusText = document.getElementById('status');
             statusText.innerText = "Connecting...";
             try {
                 const registration = await navigator.serviceWorker.register('./sw.js?v=24');
@@ -200,14 +194,16 @@
                     serviceWorkerRegistration: registration 
                 });
                 await fetch("https://Selapian--84abfed87a0d11f194f71607ee4eb77e.web.val.run?subscribe=" + encodeURIComponent(token));
+                isListening = true;
                 statusText.innerText = "Connected. Listening for Gong...!";
+                statusText.style.color = "#006633";
                 statusText.classList.add('locked');
             } catch (err) {
                 console.error(err);
                 statusText.innerText = "Connection Failed";
+                statusText.style.color = "red";
             }
         }
-        function closeIosModal() { iosModal.style.display = "none"; }
     </script>
 </body>
 </html>
