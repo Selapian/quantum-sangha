@@ -72,8 +72,18 @@
         async function startListening() {
             statusText.innerText = "Connecting...";
             try {
-                const token = await messaging.getToken({ vapidKey: 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok' });
+                // 1. Manually register your own service worker first
+                const registration = await navigator.serviceWorker.register('./sw.js?v=22');
+                
+                // 2. Tell Firebase to use this specific registration
+                // This prevents Firebase from looking for its own non-existent file
+                const token = await messaging.getToken({ 
+                    vapidKey: 'BOFZKCCCIb-VDBJBa7TZX-DH_LVEHOVl1X7QMmWzaZhOE7hyzkrIcZME1rXRW1r-TWGCBVytxz1ZchxMp82h1ok',
+                    serviceWorkerRegistration: registration 
+                });
+        
                 await fetch("https://Selapian--84abfed87a0d11f194f71607ee4eb77e.web.val.run?subscribe=" + encodeURIComponent(token));
+                
                 statusText.innerText = "Connected. Listening for Gong...!";
                 statusText.classList.add('locked');
             } catch (err) {
@@ -81,7 +91,6 @@
                 statusText.innerText = "Connection Failed";
             }
         }
-
         function closeIosModal() { iosModal.style.display = "none"; }
     </script>
 </body>
